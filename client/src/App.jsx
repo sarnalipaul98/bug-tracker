@@ -1412,7 +1412,8 @@ return (
       placeholder="Search tickets..."
       value={ticketSearch}
       onChange={(e) => setTicketSearch(e.target.value)}
-      className="border rounded-lg p-2 text-gray-900"
+      className="w-full border border-gray-300 rounded-lg p-2 bg-white text-gray-900"
+style={{ backgroundColor: '#ffffff', color: '#111827', colorScheme: 'light' }}
     />
 
     {/* STATUS FILTER */}
@@ -1631,6 +1632,7 @@ return (
       <div
         key={column.status}
         className="bg-white text-gray-900 p-4 rounded-xl shadow"
+style={{ backgroundColor: '#ffffff', color: '#111827', colorScheme: 'light' }}
       >
         <h3 className="font-bold text-lg mb-4">
           {column.title}
@@ -1641,7 +1643,8 @@ return (
             <div
               ref={provided.innerRef}
               {...provided.droppableProps}
-              className="min-h-32 space-y-3"
+              className="min-h-32 space-y-3 bg-white"
+style={{ backgroundColor: '#ffffff', color: '#111827', colorScheme: 'light' }}
             >
               {(tickets[project._id] || [])
                 .filter((ticket) =>
