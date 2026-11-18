@@ -1,7 +1,8 @@
 
 import { useEffect, useState } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
-const API = 'http://localhost:5000/api';
+const API = 'https://bug-tracker-lrne.onrender.com/api';
 
 function App() {
   const [isLogin, setIsLogin] = useState(true);
@@ -31,6 +32,27 @@ const [tickets, setTickets] = useState({});
 const [ticketForms, setTicketForms] = useState({});
 const [ticketLoading, setTicketLoading] = useState({});
 const [ticketMessages, setTicketMessages] = useState({});
+
+// EDIT TICKET
+const [editingTicket, setEditingTicket] = useState(null);
+const [editForm, setEditForm] = useState({
+  title: '',
+  description: '',
+  priority: 'Medium',
+  status: 'Open',
+});
+const [editMessage, setEditMessage] = useState('');
+
+// TICKET FILTERS AND SEARCH
+const [statusFilter, setStatusFilter] = useState('');
+const [priorityFilter, setPriorityFilter] = useState('');
+const [assigneeFilter, setAssigneeFilter] = useState('');
+const [ticketSearch, setTicketSearch] = useState('');
+
+// COMMENT MANAGEMENT
+const [comments, setComments] = useState({});
+const [commentInputs, setCommentInputs] = useState({});
+const [commentMessages, setCommentMessages] = useState({});
 
   // PROFILE
   const [showProfile, setShowProfile] = useState(false);
@@ -84,12 +106,51 @@ const [ticketMessages, setTicketMessages] = useState({});
   }, [user]);
 
   // FETCH TICKETS FOR A PROJECT
-const fetchTickets = async (projectId) => {
+
+  // FETCH TICKETS FOR A PROJECT
+  // FETCH TICKETS FOR A PROJECT
+  const fetchTickets = async (projectId) => {
+    try {
+      const savedToken = localStorage.getItem('token');
+
+      const response = await fetch(
+        `${API}/tickets/project/${projectId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${savedToken}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setTicketMessages((prev) => ({
+          ...prev,
+          [projectId]: data.message || 'Could not load tickets.',
+        }));
+        return;
+      }
+
+      setTickets((prev) => ({
+        ...prev,
+        [projectId]: data.tickets || [],
+      }));
+    } catch (error) {
+      setTicketMessages((prev) => ({
+        ...prev,
+        [projectId]: 'Unable to connect to backend.',
+      }));
+    }
+  };
+
+// FETCH COMMENTS FOR A TICKET
+const fetchComments = async (ticketId) => {
   try {
     const savedToken = localStorage.getItem('token');
 
     const response = await fetch(
-      `${API}/tickets/project/${projectId}`,
+      `${API}/comments/${ticketId}`,
       {
         headers: {
           Authorization: `Bearer ${savedToken}`,
@@ -100,24 +161,241 @@ const fetchTickets = async (projectId) => {
     const data = await response.json();
 
     if (!response.ok) {
-      setTicketMessages((prev) => ({
-        ...prev,
-        [projectId]: data.message || 'Could not load tickets.',
-      }));
-      return;
+      throw new Error(data.message || 'Could not load comments.');
     }
 
-    setTickets((prev) => ({
+    setComments((prev) => ({
       ...prev,
-      [projectId]: data.tickets || [],
+      [ticketId]: data.comments || [],
     }));
   } catch (error) {
-    setTicketMessages((prev) => ({
+    setCommentMessages((prev) => ({
       ...prev,
-      [projectId]: 'Unable to connect to backend.',
+      [ticketId]: error.message,
     }));
   }
 };
+
+// ADD COMMENT TO A TICKET
+const handleAddComment = async (ticketId) => {
+  const text = commentInputs[ticketId] || '';
+
+  if (!text.trim()) {
+    setCommentMessages((prev) => ({
+      ...prev,
+      [ticketId]: 'Please enter a comment.',
+    }));
+    return;
+  }
+
+  try {
+    const savedToken = localStorage.getItem('token');
+
+    const response = await fetch(
+      `${API}/comments/${ticketId}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${savedToken}`,
+        },
+        body: JSON.stringify({ text }),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Could not add comment.');
+    }
+
+    setCommentInputs((prev) => ({
+      ...prev,
+      [ticketId]: '',
+    }));
+
+    setCommentMessages((prev) => ({
+      ...prev,
+      [ticketId]: 'Comment added successfully!',
+    }));
+
+    await fetchComments(ticketId);
+  } catch (error) {
+    setCommentMessages((prev) => ({
+      ...prev,
+      [ticketId]: error.message,
+    }));
+  }
+};
+
+// OPEN EDIT TICKET FORM
+const handleEditTicket = (ticket) => {
+  setEditingTicket(ticket);
+
+  setEditForm({
+    title: ticket.title || '',
+    description: ticket.description || '',
+    priority: ticket.priority || 'Medium',
+    status: ticket.status || 'Open',
+  });
+
+  setEditMessage('');
+};
+
+// SAVE UPDATED TICKET
+const handleUpdateTicket = async (e) => {
+  e.preventDefault();
+
+  if (!editingTicket) return;
+
+  try {
+    const savedToken = localStorage.getItem('token');
+
+    const response = await fetch(
+      `${API}/tickets/${editingTicket._id}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${savedToken}`,
+        },
+        body: JSON.stringify(editForm),
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Could not update ticket.');
+    }
+
+    const projectId =
+      editingTicket.projectId?._id || editingTicket.projectId;
+
+    setTickets((prev) => ({
+      ...prev,
+      [projectId]: (prev[projectId] || []).map((ticket) =>
+        ticket._id === editingTicket._id ? data.ticket : ticket
+      ),
+    }));
+
+    setEditingTicket(null);
+    setEditMessage('');
+
+  } catch (error) {
+    setEditMessage(error.message);
+  }
+};
+
+
+// DELETE TICKET
+const handleDeleteTicket = async (ticket) => {
+  const confirmDelete = window.confirm(
+    `Are you sure you want to delete "${ticket.title}"?`
+  );
+
+  if (!confirmDelete) return;
+
+  try {
+    const savedToken = localStorage.getItem('token');
+
+    const response = await fetch(
+      `${API}/tickets/${ticket._id}`,
+      {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${savedToken}`,
+        },
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Could not delete ticket.');
+    }
+
+    const projectId =
+      ticket.projectId?._id || ticket.projectId;
+
+    setTickets((prev) => ({
+      ...prev,
+      [projectId]: (prev[projectId] || []).filter(
+        (item) => item._id !== ticket._id
+      ),
+    }));
+
+    window.alert('Ticket deleted successfully!');
+
+  } catch (error) {
+    window.alert(error.message);
+  }
+};
+
+
+  // UPDATE TICKET STATUS AFTER DRAGGING
+  const handleDragEnd = async (result, projectId) => {
+    const { destination, draggableId } = result;
+
+    if (!destination) return;
+
+    const newStatus = destination.droppableId;
+    const projectTickets = tickets[projectId] || [];
+
+    const ticket = projectTickets.find(
+      (item) => item._id === draggableId
+    );
+
+    if (!ticket || ticket.status === newStatus) return;
+
+    const oldStatus = ticket.status;
+
+    setTickets((prev) => ({
+      ...prev,
+      [projectId]: (prev[projectId] || []).map((item) =>
+        item._id === draggableId
+          ? { ...item, status: newStatus }
+          : item
+      ),
+    }));
+
+    try {
+      const response = await fetch(`${API}/tickets/${draggableId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Status update failed');
+      }
+
+      setTicketMessages((prev) => ({
+        ...prev,
+        [projectId]: 'Ticket status updated successfully!',
+      }));
+    } catch (error) {
+      setTickets((prev) => ({
+        ...prev,
+        [projectId]: (prev[projectId] || []).map((item) =>
+          item._id === draggableId
+            ? { ...item, status: oldStatus }
+            : item
+        ),
+      }));
+
+      setTicketMessages((prev) => ({
+        ...prev,
+        [projectId]: error.message,
+      }));
+    }
+  };
+
 
 // CREATE TICKET
 const handleCreateTicket = async (e, projectId) => {
@@ -1100,43 +1378,364 @@ return (
     View / Refresh Tickets
   </button>
 
-  <div className="mt-4 space-y-3">
-    {(tickets[project._id] || []).map((ticket) => (
-      <div key={ticket._id} className="border rounded-lg p-4 bg-white">
-        <h4 className="font-bold text-blue-700">{ticket.title}</h4>
+  
+{/* TICKET FILTERS AND SEARCH */}
+<div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow mt-6">
 
-        <p className="text-sm text-gray-600 mt-1">
-          {ticket.description}
-        </p>
+  <h3 className="font-bold text-lg mb-3">
+    Search and Filter Tickets
+  </h3>
 
-        <div className="flex flex-wrap gap-3 mt-3 text-sm">
-          <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">
-            Status: {ticket.status}
-          </span>
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
 
-          <span className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded">
-            Priority: {ticket.priority}
-          </span>
+    {/* SEARCH */}
+    <input
+      type="text"
+      placeholder="Search tickets..."
+      value={ticketSearch}
+      onChange={(e) => setTicketSearch(e.target.value)}
+      className="border rounded-lg p-2 text-gray-900"
+    />
+
+    {/* STATUS FILTER */}
+    <select
+      value={statusFilter}
+      onChange={(e) => setStatusFilter(e.target.value)}
+      className="border rounded-lg p-2 text-gray-900"
+    >
+      <option value="">All Statuses</option>
+      <option value="Open">Open</option>
+      <option value="In Progress">In Progress</option>
+      <option value="Resolved">Resolved</option>
+      <option value="Closed">Closed</option>
+    </select>
+
+    {/* PRIORITY FILTER */}
+    <select
+      value={priorityFilter}
+      onChange={(e) => setPriorityFilter(e.target.value)}
+      className="border rounded-lg p-2 text-gray-900"
+    >
+      <option value="">All Priorities</option>
+      <option value="Low">Low</option>
+      <option value="Medium">Medium</option>
+      <option value="High">High</option>
+    </select>
+
+    {/* ASSIGNEE FILTER */}
+    <select
+      value={assigneeFilter}
+      onChange={(e) => setAssigneeFilter(e.target.value)}
+      className="border rounded-lg p-2 text-gray-900"
+    >
+      <option value="">All Assignees</option>
+      <option value="unassigned">Unassigned</option>
+
+      {[...new Map(
+        (tickets[project._id] || [])
+          .filter((ticket) => ticket.assignee)
+          .map((ticket) => [
+            ticket.assignee._id,
+            ticket.assignee
+          ])
+      ).values()].map((user) => (
+        <option key={user._id} value={user._id}>
+          {user.name}
+        </option>
+      ))}
+    </select>
+
+  </div>
+
+  <button
+    onClick={() =>
+      fetchTickets(project._id, {
+        status: statusFilter,
+        priority: priorityFilter,
+        assignee: assigneeFilter,
+        search: ticketSearch,
+      })
+    }
+    className="mt-3 bg-blue-600 text-white px-5 py-2 rounded-lg"
+  >
+    Apply Filters
+  </button>
+
+  <button
+    onClick={() => {
+      setStatusFilter('');
+      setPriorityFilter('');
+      setAssigneeFilter('');
+      setTicketSearch('');
+      fetchTickets(project._id);
+    }}
+    className="mt-3 ml-2 bg-gray-500 text-white px-5 py-2 rounded-lg"
+  >
+    Clear Filters
+  </button>
+
+</div>
+ 
+{/* EDIT TICKET MODAL */}
+{editingTicket && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+
+    <div className="bg-white dark:bg-gray-800 p-6 rounded-xl w-full max-w-lg">
+
+      <h2 className="text-xl font-bold mb-4">
+        Edit Ticket
+      </h2>
+
+      <form onSubmit={handleUpdateTicket}>
+
+        <label className="block mb-2 font-medium">
+          Ticket Title
+        </label>
+        <input
+          type="text"
+          value={editForm.title}
+          onChange={(e) =>
+            setEditForm({ ...editForm, title: e.target.value })
+          }
+          className="w-full border rounded-lg p-2 mb-4 text-gray-900"
+          required
+        />
+
+        <label className="block mb-2 font-medium">
+          Description
+        </label>
+        <textarea
+          value={editForm.description}
+          onChange={(e) =>
+            setEditForm({ ...editForm, description: e.target.value })
+          }
+          className="w-full border rounded-lg p-2 mb-4 text-gray-900"
+          rows="3"
+        />
+
+        <label className="block mb-2 font-medium">
+          Priority
+        </label>
+        <select
+          value={editForm.priority}
+          onChange={(e) =>
+            setEditForm({ ...editForm, priority: e.target.value })
+          }
+          className="w-full border rounded-lg p-2 mb-4 text-gray-900"
+        >
+          <option value="Low">Low</option>
+          <option value="Medium">Medium</option>
+          <option value="High">High</option>
+        </select>
+
+        <label className="block mb-2 font-medium">
+          Status
+        </label>
+        <select
+          value={editForm.status}
+          onChange={(e) =>
+            setEditForm({ ...editForm, status: e.target.value })
+          }
+          className="w-full border rounded-lg p-2 mb-4 text-gray-900"
+        >
+          <option value="Open">Open</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Resolved">Resolved</option>
+          <option value="Closed">Closed</option>
+        </select>
+
+        {editMessage && (
+          <p className="text-red-500 mb-3">
+            {editMessage}
+          </p>
+        )}
+
+        <div className="flex gap-3">
+
+          <button
+            type="submit"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+          >
+            Save Changes
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setEditingTicket(null);
+              setEditMessage('');
+            }}
+            className="bg-gray-500 text-white px-4 py-2 rounded-lg"
+          >
+            Cancel
+          </button>
+
         </div>
 
-        <p className="text-sm text-gray-600 mt-2">
-          Assignee: {ticket.assignee?.name || 'Unassigned'}
+      </form>
+    </div>
+  </div>
+)}
+ 
+
+  
+<DragDropContext onDragEnd={handleDragEnd}>
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+    {[
+      { title: 'To Do', status: 'Open' },
+      { title: 'In Progress', status: 'In Progress' },
+      { title: 'Done', status: 'Resolved' },
+    ].map((column) => (
+      <div
+        key={column.status}
+        className="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl"
+      >
+        <h3 className="font-bold text-lg mb-4">
+          {column.title}
+        </h3>
+
+        <Droppable droppableId={column.status}>
+          {(provided) => (
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              className="min-h-32 space-y-3"
+            >
+              {(tickets[project._id] || [])
+                .filter((ticket) =>
+                  column.status === 'Resolved'
+                    ? ['Resolved', 'Closed'].includes(ticket.status)
+                    : ticket.status === column.status
+                )
+                .map((ticket, index) => (
+                  <Draggable
+                    key={ticket._id}
+                    draggableId={ticket._id}
+                    index={index}
+                  >
+                    {(provided) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        className="bg-white dark:bg-gray-700 p-4 rounded-lg shadow"
+                      >
+                        <h4 className="font-semibold">
+                          {ticket.title}
+                        </h4>
+
+                        <p className="text-sm mt-2">
+                          {ticket.description}
+                        </p>
+
+                        <p className="text-sm mt-2">
+                          Priority: {ticket.priority}
+                        </p>
+
+                        <p className="text-xs mt-1">
+                          Status: {ticket.status}
+                        </p>
+{/* EDIT TICKET BUTTON */}
+<button
+  onClick={() => handleEditTicket(ticket)}
+  className="mt-3 bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg text-sm"
+>
+  Edit Ticket
+</button>
+
+{/* DELETE TICKET BUTTON */}
+<button
+  onClick={() => handleDeleteTicket(ticket)}
+  className="mt-3 ml-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm"
+>
+  Delete Ticket
+</button>
+
+
+{/* COMMENT SECTION */}
+<div className="mt-4 border-t pt-3">
+
+  <button
+    onClick={() => fetchComments(ticket._id)}
+    className="text-blue-600 text-sm font-semibold mb-3"
+  >
+    View Comments
+  </button>
+
+  {/* COMMENT HISTORY */}
+  <div className="space-y-2">
+    {(comments[ticket._id] || []).map((comment) => (
+      <div
+        key={comment._id}
+        className="bg-gray-100 dark:bg-gray-600 p-3 rounded-lg"
+      >
+        <p className="font-semibold text-sm">
+          {comment.userId?.name || 'User'}
         </p>
 
-        <p className="text-xs text-gray-400 mt-1">
-          Created: {ticket.createdAt
-            ? new Date(ticket.createdAt).toLocaleString()
-            : 'Not available'}
+        <p className="text-sm mt-1">
+          {comment.text}
+        </p>
+
+        <p className="text-xs text-gray-500 mt-1">
+          {new Date(comment.createdAt).toLocaleString()}
         </p>
       </div>
     ))}
-
-    {tickets[project._id]?.length === 0 && (
-      <p className="text-sm text-gray-500">
-        No tickets found for this project.
-      </p>
-    )}
   </div>
+
+  {/* ADD COMMENT */}
+  <form
+    onSubmit={(e) => {
+      e.preventDefault();
+      handleAddComment(ticket._id);
+    }}
+    className="mt-3"
+  >
+    <input
+      type="text"
+      placeholder="Write a comment..."
+      value={commentInputs[ticket._id] || ''}
+      onChange={(e) =>
+        setCommentInputs((prev) => ({
+          ...prev,
+          [ticket._id]: e.target.value,
+        }))
+      }
+      className="w-full border rounded-lg p-2 text-sm text-gray-900"
+    />
+
+    <button
+      type="submit"
+      className="mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm"
+    >
+      Add Comment
+    </button>
+  </form>
+
+  {commentMessages[ticket._id] && (
+    <p className="text-sm mt-2">
+      {commentMessages[ticket._id]}
+    </p>
+  )}
+
+</div>
+
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
+      </div>
+    ))}
+  </div>
+</DragDropContext>
+
+
 </div>
                     </>
                     

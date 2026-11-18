@@ -94,10 +94,12 @@ router.post('/', async (req, res) => {
   }
 });
 
-// LIST TICKETS BY PROJECT
+
+// LIST AND FILTER TICKETS BY PROJECT
 router.get('/project/:projectId', async (req, res) => {
   try {
     const { projectId } = req.params;
+    const { status, priority, assignee, search } = req.query;
 
     if (!mongoose.Types.ObjectId.isValid(projectId)) {
       return res.status(400).json({
@@ -127,7 +129,44 @@ router.get('/project/:projectId', async (req, res) => {
       });
     }
 
-    const tickets = await Ticket.find({ projectId })
+    // BUILD FILTER
+    const filter = { projectId };
+
+    if (status) {
+      filter.status = status;
+    }
+
+    if (priority) {
+      filter.priority = priority;
+    }
+
+    if (assignee === 'unassigned') {
+      filter.assignee = null;
+    } else if (assignee) {
+      if (!mongoose.Types.ObjectId.isValid(assignee)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid assignee ID.'
+        });
+      }
+
+      filter.assignee = assignee;
+    }
+
+    // SEARCH TITLE AND DESCRIPTION
+    if (search && search.trim()) {
+      const escapedSearch = search.trim().replace(
+        /[.*+?^${}()|[\]\\]/g,
+        '\\$&'
+      );
+
+      filter.$or = [
+        { title: { $regex: escapedSearch, $options: 'i' } },
+        { description: { $regex: escapedSearch, $options: 'i' } }
+      ];
+    }
+
+    const tickets = await Ticket.find(filter)
       .populate('assignee', 'name email')
       .populate('projectId', 'title')
       .sort({ createdAt: -1 });
@@ -137,6 +176,7 @@ router.get('/project/:projectId', async (req, res) => {
       count: tickets.length,
       tickets
     });
+
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -144,6 +184,7 @@ router.get('/project/:projectId', async (req, res) => {
     });
   }
 });
+
 
 // UPDATE TICKET
 router.put('/:id', async (req, res) => {

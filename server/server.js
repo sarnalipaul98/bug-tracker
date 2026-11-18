@@ -13,10 +13,12 @@ app.use(express.json());
 const authRoutes = require('./routes/authRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const ticketRoutes = require('./routes/ticketRoutes');
+const commentRoutes = require('./routes/commentRoutes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/tickets', ticketRoutes);
+app.use('/api/comments', commentRoutes);
 app.get('/', (req, res) => {
   res.send('Bug Tracker API is Running!');
 });
