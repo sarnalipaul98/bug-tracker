@@ -1416,7 +1416,7 @@ return (
     <select
       value={statusFilter}
       onChange={(e) => setStatusFilter(e.target.value)}
-      className="border rounded-lg p-2 text-gray-900"
+      className="w-full sm:w-auto border border-gray-300 rounded-lg p-2 bg-white text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
     >
       <option value="">All Statuses</option>
       <option value="Open">Open</option>
