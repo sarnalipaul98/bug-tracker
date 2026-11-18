@@ -1395,7 +1395,10 @@ return (
 
   
 {/* TICKET FILTERS AND SEARCH */}
-<div className="bg-white text-gray-900 p-4 rounded-xl shadow mt-6">
+<div
+  className="bg-white text-gray-900 p-4 rounded-xl shadow mt-6"
+  style={{ backgroundColor: '#ffffff', color: '#111827', colorScheme: 'light' }}
+>
 
   <h3 className="font-bold text-lg mb-3">
     Search and Filter Tickets
@@ -1627,7 +1630,7 @@ return (
     ].map((column) => (
       <div
         key={column.status}
-        className="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl"
+        className="bg-white text-gray-900 p-4 rounded-xl shadow"
       >
         <h3 className="font-bold text-lg mb-4">
           {column.title}
@@ -1657,7 +1660,7 @@ return (
                         ref={provided.innerRef}
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
-                        className="bg-white dark:bg-gray-700 p-4 rounded-lg shadow"
+                        className="bg-white text-gray-900 p-4 rounded-lg shadow"
                       >
                         <h4 className="font-semibold">
                           {ticket.title}
