@@ -118,3 +118,11 @@ Through this project, I gained practical knowledge of React, Node.js, Express.js
 This application provides an organised platform for managing projects, tracking bugs, assigning tasks, and improving team collaboration.
 
 Overall, the project improved my technical skills and gave me practical experience in full-stack web development.
+
+
+## Project Links
+
+- Frontend GitHub: https://github.com/sarnalipaul98/bug-tracker/tree/main/client
+- Backend GitHub: https://github.com/sarnalipaul98/bug-tracker/tree/main/server
+- Frontend Deployment: https://bug-tracker-qxsk13ga3-sarnali.vercel.app/
+- Backend Deployment: https://bug-tracker-lrne.onrender.com
