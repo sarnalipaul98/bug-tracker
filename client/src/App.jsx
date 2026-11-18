@@ -1395,7 +1395,7 @@ return (
 
   
 {/* TICKET FILTERS AND SEARCH */}
-<div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow mt-6">
+<div className="bg-white text-gray-900 p-4 rounded-xl shadow mt-6">
 
   <h3 className="font-bold text-lg mb-3">
     Search and Filter Tickets
@@ -1417,6 +1417,12 @@ return (
       value={statusFilter}
       onChange={(e) => setStatusFilter(e.target.value)}
       className="w-full sm:w-auto border border-gray-300 rounded-lg p-2 bg-white text-gray-900 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+      style={{
+    backgroundColor: '#ffffff',
+    color: '#111827',
+    colorScheme: 'light'
+  }}
+
     >
       <option value="">All Statuses</option>
       <option value="Open">Open</option>
@@ -1430,6 +1436,11 @@ return (
       value={priorityFilter}
       onChange={(e) => setPriorityFilter(e.target.value)}
       className="border rounded-lg p-2 text-gray-900"
+      style={{
+    backgroundColor: '#ffffff',
+    color: '#111827',
+    colorScheme: 'light'
+  }}
     >
       <option value="">All Priorities</option>
       <option value="Low">Low</option>
@@ -1442,6 +1453,11 @@ return (
       value={assigneeFilter}
       onChange={(e) => setAssigneeFilter(e.target.value)}
       className="border rounded-lg p-2 text-gray-900"
+      style={{
+    backgroundColor: '#ffffff',
+    color: '#111827',
+    colorScheme: 'light'
+  }}
     >
       <option value="">All Assignees</option>
       <option value="unassigned">Unassigned</option>
