@@ -1,4 +1,4 @@
-
+import toast, { Toaster } from 'react-hot-toast';
 import { useEffect, useState } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
@@ -32,7 +32,7 @@ const [tickets, setTickets] = useState({});
 const [ticketForms, setTicketForms] = useState({});
 const [ticketLoading, setTicketLoading] = useState({});
 const [ticketMessages, setTicketMessages] = useState({});
-
+const [ticketsLoading, setTicketsLoading] = useState(false);
 // EDIT TICKET
 const [editingTicket, setEditingTicket] = useState(null);
 const [editForm, setEditForm] = useState({
@@ -105,45 +105,48 @@ const [commentMessages, setCommentMessages] = useState({});
     }
   }, [user]);
 
-  // FETCH TICKETS FOR A PROJECT
 
   // FETCH TICKETS FOR A PROJECT
-  // FETCH TICKETS FOR A PROJECT
-  const fetchTickets = async (projectId) => {
-    try {
-      const savedToken = localStorage.getItem('token');
+const fetchTickets = async (projectId) => {
+  setTicketsLoading(true);
 
-      const response = await fetch(
-        `${API}/tickets/project/${projectId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${savedToken}`,
-          },
-        }
-      );
+  try {
+    const savedToken = localStorage.getItem('token');
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setTicketMessages((prev) => ({
-          ...prev,
-          [projectId]: data.message || 'Could not load tickets.',
-        }));
-        return;
+    const response = await fetch(
+      `${API}/tickets/project/${projectId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${savedToken}`,
+        },
       }
+    );
 
-      setTickets((prev) => ({
-        ...prev,
-        [projectId]: data.tickets || [],
-      }));
-    } catch (error) {
+    const data = await response.json();
+
+    if (!response.ok) {
       setTicketMessages((prev) => ({
         ...prev,
-        [projectId]: 'Unable to connect to backend.',
+        [projectId]: data.message || 'Could not load tickets.',
       }));
+      return;
     }
-  };
 
+    setTickets((prev) => ({
+      ...prev,
+      [projectId]: data.tickets || [],
+    }));
+
+  } catch (error) {
+    setTicketMessages((prev) => ({
+      ...prev,
+      [projectId]: 'Unable to connect to backend.',
+    }));
+
+  } finally {
+    setTicketsLoading(false);
+  }
+};
 // FETCH COMMENTS FOR A TICKET
 const fetchComments = async (ticketId) => {
   try {
@@ -214,6 +217,8 @@ const handleAddComment = async (ticketId) => {
       [ticketId]: '',
     }));
 
+    toast.success('Comment added successfully!');
+
     setCommentMessages((prev) => ({
       ...prev,
       [ticketId]: 'Comment added successfully!',
@@ -221,6 +226,7 @@ const handleAddComment = async (ticketId) => {
 
     await fetchComments(ticketId);
   } catch (error) {
+     toast.error(error.message);
     setCommentMessages((prev) => ({
       ...prev,
       [ticketId]: error.message,
@@ -280,9 +286,11 @@ const handleUpdateTicket = async (e) => {
     }));
 
     setEditingTicket(null);
+toast.success('Ticket updated successfully!');
     setEditMessage('');
 
   } catch (error) {
+    toast.error(error.message);
     setEditMessage(error.message);
   }
 };
@@ -325,10 +333,10 @@ const handleDeleteTicket = async (ticket) => {
       ),
     }));
 
-    window.alert('Ticket deleted successfully!');
+    toast.success('Ticket deleted successfully!');
 
   } catch (error) {
-    window.alert(error.message);
+    toast.error(error.message);
   }
 };
 
@@ -379,6 +387,7 @@ const handleDeleteTicket = async (ticket) => {
         ...prev,
         [projectId]: 'Ticket status updated successfully!',
       }));
+      toast.success('Ticket created successfully!');
     } catch (error) {
       setTickets((prev) => ({
         ...prev,
@@ -614,6 +623,7 @@ const handleCreateTicket = async (e, projectId) => {
       setTitle('');
       setDescription('');
       setMessage('Project created successfully!');
+      toast.success('Project created successfully!');
       await fetchProjects();
     } catch (error) {
       setMessage('Unable to create project.');
@@ -654,6 +664,7 @@ const handleCreateTicket = async (e, projectId) => {
 
       setEditingId(null);
       setMessage('Project updated successfully!');
+      toast.success('Project updated successfully!');
       await fetchProjects();
     } catch (error) {
       setMessage('Unable to update project.');
@@ -682,6 +693,7 @@ const handleCreateTicket = async (e, projectId) => {
       }
 
       setMessage('Project deleted successfully!');
+      toast.success('Project deleted successfully!');
       await fetchProjects();
     } catch (error) {
       setMessage('Unable to delete project.');
@@ -723,6 +735,7 @@ const handleCreateTicket = async (e, projectId) => {
       }));
 
       setMessage('Team member added successfully!');
+      toast.success('Team member added successfully!');
       await fetchProjects();
     } catch (error) {
       setMessage('Unable to add team member.');
@@ -754,6 +767,7 @@ const handleCreateTicket = async (e, projectId) => {
       }
 
       setMessage('Team member removed successfully!');
+      toast.success('Team member removed successfully!');
       await fetchProjects();
     } catch (error) {
       setMessage('Unable to remove team member.');
@@ -870,6 +884,7 @@ return (
         </a>
       </nav>
     </aside>
+    <Toaster position="top-right" />
 
     <header className="bg-blue-700 text-white p-5 shadow-md">
         <div className="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-3">
@@ -1577,7 +1592,15 @@ return (
   </div>
 )}
  
-
+{/* TICKET LOADING SPINNER */}
+{ticketsLoading && (
+  <div className="flex justify-center items-center py-8">
+    <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+    <span className="ml-3 text-gray-600 dark:text-gray-300">
+      Loading tickets...
+    </span>
+  </div>
+)}
   
 <DragDropContext onDragEnd={handleDragEnd}>
   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
@@ -1702,6 +1725,7 @@ return (
           [ticket._id]: e.target.value,
         }))
       }
+      
       className="w-full border rounded-lg p-2 text-sm text-gray-900"
     />
 
